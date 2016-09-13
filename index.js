@@ -112,8 +112,16 @@ Sasquatcha.prototype.watchQueue = function (queueData,callback)
                 else
                 {
                     self.log(err, event.data, 'error');
-                    callback(err, null);
-                    event.next();
+                    event.deleteMessage(function (err, data) {
+                        if (err) {
+                            self.log("Error Deleting Message After Change Visibility Error " + event.message.MessageId, data, 'error');
+                        }
+                        else {
+                            self.log("Deleted Message After Change Visibility Error " + event.message.MessageId, data, 'info');
+                        }
+                        callback(err, null);
+                        event.next();
+                    });
                 }
 
             });
@@ -122,8 +130,16 @@ Sasquatcha.prototype.watchQueue = function (queueData,callback)
         catch (ex)
         {
             self.log("Error Occurred processing SQS Message " + event.message.MessageId, { evt: event, ex: ex }, 'error');
-            callback(ex);
-            event.next();
+            event.deleteMessage(function (err, data) {
+                if (err) {
+                    self.log("Error Deleting Message After Processing Error " + event.message.MessageId, data, 'error');
+                }
+                else {
+                    self.log("Deleted Message After Processing Error " + event.message.MessageId, data, 'info');
+                }
+                callback(ex);
+                event.next();
+            });
         }
     });
 
