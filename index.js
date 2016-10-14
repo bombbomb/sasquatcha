@@ -107,13 +107,16 @@ Sasquatcha.prototype.watchQueue = function (queueData,callback)
                                 event.next();
                             });
                         }
+                        else
+                        {
+                            event.next();
+                        }
                     });
                 }
                 else
                 {
                     self.log(err, event.data, 'error');
-                    callback(err, null);
-                    event.next();
+                    callback(err, null, event, event.next);
                 }
 
             });
@@ -121,9 +124,9 @@ Sasquatcha.prototype.watchQueue = function (queueData,callback)
         }
         catch (ex)
         {
+            var errMsg = (typeof ex == "object" && ex.message) ? ex.message : ex;
             self.log("Error Occurred processing SQS Message " + event.message.MessageId, { evt: event, ex: ex }, 'error');
-            callback(ex);
-            event.next();
+            callback(errMsg, null, event, event.next);
         }
     });
 
