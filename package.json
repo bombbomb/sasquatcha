@@ -1,6 +1,6 @@
 {
   "name": "sasquatcha",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "It watches for blurry SQS messages",
   "main": "index.js",
   "scripts": {
@@ -39,7 +39,7 @@
     "grunt-mocha-test": "^0.12.7",
     "istanbul": "^0.4.2",
     "karma": "^0.13.22",
-    "mocha": "^2.4.5",
+    "mocha": "^3.1.2",
     "mocha-istanbul": "^0.2.0",
     "proxyquire": "^1.7.4",
     "sinon": "^1.17.3",
