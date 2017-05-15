@@ -13,11 +13,13 @@ function Sasquatcha(parameters)
         useLegacyDynamo: false,
         tableName: 'SasquatchaWatcha',
         maxNumberOfMessages: 1,
-        concurrency: 1
+        concurrency: 1,
+        autoConfirmSubscriptions: false
     };
 
     this.options = _.extend(this.options,parameters);
     this.queueOptions = this.getQueueOptions();
+    this.watchedQueues = {};
 
     var self = this,
         params = {
@@ -49,10 +51,9 @@ function Sasquatcha(parameters)
 
 Sasquatcha.prototype.start = function(callback)
 {
+    // TODO; allow first parameter to be a string of an SQS name and only start for that queue
     var self = this;
     this.getWatchableQueues(function(err, data) {
-
-        console.log('fetching watchable queues',data);
         if (err)
         {
             self.log(err,null,'error');
@@ -64,7 +65,6 @@ Sasquatcha.prototype.start = function(callback)
                 self.watchQueue(queueData, callback);
             });
         }
-
     });
 };
 
@@ -78,14 +78,41 @@ Sasquatcha.prototype.getWatchableQueues = function(callback)
     },callback);
 };
 
+Sasquatcha.prototype.autoConfirmSubscription = function(sqsMessage,callback)
+{
+    try
+    {
+        // http://docs.aws.amazon.com/sns/latest/dg/SendMessageToSQS.cross.account.html
+        if (typeof sqsMessage.SubscribeURL === "string" && sqsMessage.SubscribeURL.length)
+        {
+            https.get(sqsMessage.SubscribeURL, function(res){
+                res.on('data', function(data){
+                    self.log("Response from Automatic Confirmation of Subscription", data, 'warn');
+                    callback && callback(null,data);
+                    callback = null;
+                });
+            }).on('error', function(e) {
+                callback && callback(e, null);
+            });
+        }
+
+    }
+    catch (e)
+    {
+        callback("Unable to confirm subscription " + event.message.MessageId, '');
+    }
+};
+
 Sasquatcha.prototype.watchQueue = function (queueData,callback)
 {
 
     var self = this;
     var queueWatchOptions = _.extend(this.queueOptions,{ name: queueData.sqsName });
-    var queue = new SqsQueueParallel(queueWatchOptions);
 
-    queue.on('message', function (event) {
+    this.watchedQueues[queueData.sqsName] = this.getSQSQueue(queueWatchOptions);
+    var queue = this.watchedQueues[queueData.sqsName];
+
+    queue.on('message', function(event) {
         try
         {
 
@@ -94,6 +121,20 @@ Sasquatcha.prototype.watchQueue = function (queueData,callback)
 
                 if (!err)
                 {
+
+                    if (self.isConfirmationMessage(event.message) && self.isAutoConfirmQueue(queueData))
+                    {
+                        queueData.autoConfirmPending = true;
+                        self.autoConfirmSubscription(event.message,function(err, data){
+                            if (err) {
+                                self.log("Error Confirming Subscription " + event.message.MessageId, data, 'error');
+                            }
+                            else {
+                                self.log("Subscription Confirmed " + event.message.MessageId, data, 'info');
+                            }
+                        });
+                    }
+
                     callback(null, queueData, event, function(err){
                         if (!err)
                         {
@@ -124,8 +165,7 @@ Sasquatcha.prototype.watchQueue = function (queueData,callback)
         }
         catch (ex)
         {
-            var errMsg = (typeof ex == "object" && ex.message) ? ex.message : ex;
-            self.log("Error Occurred processing SQS Message " + event.message.MessageId, { evt: event, ex: ex }, 'error');
+            self.log("Error Occurred processing SQS Message " + event.message.MessageId, { ex: ex, evt: event }, 'error');
             callback(errMsg, null, event, event.next);
         }
     });
@@ -134,6 +174,26 @@ Sasquatcha.prototype.watchQueue = function (queueData,callback)
         self.log(err, null, 'error');
     });
 
+};
+
+Sasquatcha.prototype.getSQSQueue = function (queueWatchOptions)
+{
+    return new SqsQueueParallel(queueWatchOptions);
+};
+
+Sasquatcha.prototype.unwatch = function (queueDetails)
+{
+    this.watchedQueues[queueData.name] = queue;
+};
+
+Sasquatcha.prototype.isAutoConfirmQueue = function (queueDetails)
+{
+    return queueDetails.autoConfirm == true || this.options.autoConfirmSubscriptions == true;
+};
+
+Sasquatcha.prototype.isConfirmationMessage = function (message)
+{
+    return (typeof message.SubscribeURL  === "string");
 };
 
 Sasquatcha.prototype.getQueues = function (queryOptions, callback)
@@ -154,17 +214,18 @@ Sasquatcha.prototype.addWatch = function(queueName, queueData, enabled, callback
 {
 
     queueData = queueData || {};
-    enabled = enabled || 1;
+    enabled = enabled ? 1 : 0;
 
     var self = this,
         dynamo = this.getDynamo(),
         itemRecord = _.extend(queueData,{
             id: guid.create().value,
             sqsName: queueName,
-            enabled: enabled
+            enabled: enabled,
+            autoConfirm: false
         });
 
-    if (typeof itemRecord.sqsName != "string" || !itemRecord.sqsName.length)
+    if (typeof itemRecord.sqsName !== "string" || !itemRecord.sqsName.length)
     {
         callback('sqsName is not a string or null',null);
     }
@@ -233,16 +294,17 @@ Sasquatcha.prototype.makeTable = function()
         params = {
             TableName: this.getDbTableName(),
             AttributeDefinitions: [
-                {AttributeName: 'id',       AttributeType: 'S'},
-                {AttributeName: 'sqsName',   AttributeType: 'S'},
-                {AttributeName: 'enabled',  AttributeType: 'N'}
+                {AttributeName: 'id',           AttributeType: 'S'},
+                {AttributeName: 'sqsName',      AttributeType: 'S'},
+                {AttributeName: 'enabled',      AttributeType: 'N'},
+                {AttributeName: 'autoConfirm',  AttributeType: 'N'}
             ],
             KeySchema: [
                 { AttributeName: 'id',    KeyType: 'HASH' }
             ],
             ProvisionedThroughput: {
                 ReadCapacityUnits: 5,
-                WriteCapacityUnits: 10
+                WriteCapacityUnits: 5
             },
             GlobalSecondaryIndexes: [
                 {
@@ -255,7 +317,7 @@ Sasquatcha.prototype.makeTable = function()
                     },
                     ProvisionedThroughput: {
                         ReadCapacityUnits: 5,
-                        WriteCapacityUnits: 10
+                        WriteCapacityUnits: 2
                     }
                 },
                 {
@@ -267,8 +329,8 @@ Sasquatcha.prototype.makeTable = function()
                         ProjectionType:'ALL'
                     },
                     ProvisionedThroughput: {
-                        ReadCapacityUnits: 10,
-                        WriteCapacityUnits: 5
+                        ReadCapacityUnits: 3,
+                        WriteCapacityUnits: 2
                     }
                 }
             ]
@@ -300,20 +362,5 @@ Sasquatcha.prototype.log = function(message, detail, level)
 {
     this.options.logger(message, detail, level);
 };
-
-// this is used when in test mode so
-function dynamoLegacyFormat(updateItem)
-{
-    updateItem.AttributeUpdates = {};
-    for (var x in updateItem.ExpressionAttributeValues)
-    {
-        if (!updateItem.ExpressionAttributeValues.hasOwnProperty(x)) continue;
-        updateItem.AttributeUpdates[x.replace(/:/, '')] = {
-            Action: 'PUT',
-            Value: updateItem.ExpressionAttributeValues[x]
-        };
-    }
-    return updateItem;
-}
 
 module.exports = Sasquatcha;
