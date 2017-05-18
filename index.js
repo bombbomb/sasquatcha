@@ -83,7 +83,7 @@ Sasquatcha.prototype.autoConfirmSubscription = function(sqsMessage,callback)
     try
     {
         // http://docs.aws.amazon.com/sns/latest/dg/SendMessageToSQS.cross.account.html
-        if (typeof sqsMessage.SubscribeURL === "string" && sqsMessage.SubscribeURL.length)
+        if (sqsMessage.SubscribeURL&& sqsMessage.SubscribeURL.length)
         {
             https.get(sqsMessage.SubscribeURL, function(res){
                 res.on('data', function(data){
@@ -92,6 +92,7 @@ Sasquatcha.prototype.autoConfirmSubscription = function(sqsMessage,callback)
                     callback = null;
                 });
             }).on('error', function(e) {
+                self.log("Error occurred duringconfirmation of Subscription", e, 'error');
                 callback && callback(e, null);
             });
         }
@@ -193,7 +194,7 @@ Sasquatcha.prototype.isAutoConfirmQueue = function (queueDetails)
 
 Sasquatcha.prototype.isConfirmationMessage = function (message)
 {
-    return (typeof message.SubscribeURL  === "string");
+    return message.Type === "SubscriptionConfirmation" && message.SubscribeURL;
 };
 
 Sasquatcha.prototype.getQueues = function (queryOptions, callback)
