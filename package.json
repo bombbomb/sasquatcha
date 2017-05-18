@@ -1,6 +1,6 @@
 {
   "name": "sasquatcha",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "It watches for blurry SQS messages",
   "main": "index.js",
   "scripts": {
