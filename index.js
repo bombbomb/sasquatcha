@@ -83,7 +83,7 @@ Sasquatcha.prototype.autoConfirmSubscription = function(sqsMessage,callback)
     try
     {
         // http://docs.aws.amazon.com/sns/latest/dg/SendMessageToSQS.cross.account.html
-        if (sqsMessage.SubscribeURL&& sqsMessage.SubscribeURL.length)
+        if (sqsMessage.SubscribeURL && sqsMessage.SubscribeURL.length)
         {
             https.get(sqsMessage.SubscribeURL, function(res){
                 res.on('data', function(data){
@@ -92,7 +92,7 @@ Sasquatcha.prototype.autoConfirmSubscription = function(sqsMessage,callback)
                     callback = null;
                 });
             }).on('error', function(e) {
-                self.log("Error occurred duringconfirmation of Subscription", e, 'error');
+                self.log("Error occurred during Subscription Confirmation", e, 'error');
                 callback && callback(e, null);
             });
         }
@@ -100,7 +100,7 @@ Sasquatcha.prototype.autoConfirmSubscription = function(sqsMessage,callback)
     }
     catch (e)
     {
-        callback("Unable to confirm subscription " + event.message.MessageId, '');
+        callback("Exception occurred during subscription confirmation " + sqsMessage.MessageId+'; '+e.message, null);
     }
 };
 
@@ -123,15 +123,16 @@ Sasquatcha.prototype.watchQueue = function (queueData,callback)
                 if (!err)
                 {
 
-                    if (self.isConfirmationMessage(event.message) && self.isAutoConfirmQueue(queueData))
+                    if (self.isConfirmationMessage(event.data) && self.isAutoConfirmQueue(queueData))
                     {
                         queueData.autoConfirmPending = true;
-                        self.autoConfirmSubscription(event.message,function(err, data){
+                        self.autoConfirmSubscription(event.data,function(err, data){
                             if (err) {
-                                self.log("Error Confirming Subscription " + event.message.MessageId, data, 'error');
+                                self.log("Error Confirming Subscription " + event.data.MessageId, data, 'error');
                             }
                             else {
-                                self.log("Subscription Confirmed " + event.message.MessageId, data, 'info');
+                                self.log("Subscription Confirmed " + event.data.MessageId, data, 'info');
+                                queueData.autoConfirmPending = false;
                             }
                         });
                     }
