@@ -80,6 +80,7 @@ Sasquatcha.prototype.getWatchableQueues = function(callback)
 
 Sasquatcha.prototype.autoConfirmSubscription = function(sqsMessage,callback)
 {
+    var self = this;
     try
     {
         // http://docs.aws.amazon.com/sns/latest/dg/SendMessageToSQS.cross.account.html
@@ -167,8 +168,8 @@ Sasquatcha.prototype.watchQueue = function (queueData,callback)
         }
         catch (ex)
         {
+            callback(ex.message, null, event, event.next);
             self.log("Error Occurred processing SQS Message " + event.message.MessageId, { ex: ex, evt: event }, 'error');
-            callback(errMsg, null, event, event.next);
         }
     });
 
