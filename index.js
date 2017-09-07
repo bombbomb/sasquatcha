@@ -107,21 +107,16 @@ Sasquatcha.prototype.watchQueue = function (queueData,callback)
                                 event.next();
                             });
                         }
+                        else
+                        {
+                            event.next();
+                        }
                     });
                 }
                 else
                 {
                     self.log(err, event.data, 'error');
-                    event.deleteMessage(function (err, data) {
-                        if (err) {
-                            self.log("Error Deleting Message After Change Visibility Error " + event.message.MessageId, data, 'error');
-                        }
-                        else {
-                            self.log("Deleted Message After Change Visibility Error " + event.message.MessageId, data, 'info');
-                        }
-                        callback(err, null);
-                        event.next();
-                    });
+                    callback(err, null, event, event.next);
                 }
 
             });
@@ -129,6 +124,7 @@ Sasquatcha.prototype.watchQueue = function (queueData,callback)
         }
         catch (ex)
         {
+            var errMsg = (typeof ex == "object" && ex.message) ? ex.message : ex;
             self.log("Error Occurred processing SQS Message " + event.message.MessageId, { evt: event, ex: ex }, 'error');
             event.deleteMessage(function (err, data) {
                 if (err) {
@@ -140,6 +136,7 @@ Sasquatcha.prototype.watchQueue = function (queueData,callback)
                 callback(ex);
                 event.next();
             });
+            callback(errMsg, null, event, event.next);
         }
     });
 
