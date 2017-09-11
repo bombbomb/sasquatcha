@@ -1,6 +1,6 @@
 {
   "name": "sasquatcha",
-  "version": "0.1.1",
+  "version": "0.1.5",
   "description": "It watches for blurry SQS messages",
   "main": "index.js",
   "scripts": {
@@ -23,26 +23,27 @@
   "homepage": "https://github.com/bombbomb/sasquatcha#readme",
   "dependencies": {
     "aws-sdk": "^2.3.11",
-    "dynamo-doc": "^0.1.1",
+    "dynamodb-doc": "^1.0.0",
     "guid": "0.0.12",
     "https": "^1.0.0",
     "sqs-queue-parallel": "^0.1.6",
     "underscore": "^1.8.3"
   },
   "devDependencies": {
+    "async": "^2.4.0",
     "chai": "^3.4.1",
-    "dynalite": "^0.17.3",
+    "dynalite": "^1.0.2",
     "grunt": "^0.4.5",
     "grunt-aws-lambda": "^0.11.0",
-    "grunt-karma": "^0.12.1",
+    "grunt-karma": "^1.0.0",
     "grunt-mocha-istanbul": "^3.0.1",
     "grunt-mocha-test": "^0.12.7",
     "istanbul": "^0.4.2",
     "karma": "^0.13.22",
-    "mocha": "^3.1.2",
+    "mocha": "^3.4.1",
     "mocha-istanbul": "^0.2.0",
     "proxyquire": "^1.7.4",
-    "sinon": "^1.17.3",
+    "sinon": "^2.2.0",
     "supertest": "^1.2.0"
   }
 }
