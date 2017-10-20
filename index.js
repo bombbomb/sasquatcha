@@ -300,7 +300,6 @@ Sasquatcha.prototype.makeTable = function()
                 {AttributeName: 'id',           AttributeType: 'S'},
                 {AttributeName: 'sqsName',      AttributeType: 'S'},
                 {AttributeName: 'enabled',      AttributeType: 'N'},
-                {AttributeName: 'autoConfirm',  AttributeType: 'N'}
             ],
             KeySchema: [
                 { AttributeName: 'id',    KeyType: 'HASH' }
